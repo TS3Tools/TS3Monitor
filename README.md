@@ -4,7 +4,7 @@ Monitor your TeamSpeak 3 / TSDNS server instances using **TS3Monitor**.
 
 It will check the status of your TeamSpeak 3 / TSDNS server instance and if it has crashed, it will try to restart it.
 
-The **TS3Monitor* provides you also an autostart feature of the configured instances after a reboot or crash of the entire Root server/VPS/virtual machine.
+The **TS3Monitor** provides you also an autostart feature of the configured instances after a reboot or crash of the entire Root server/VPS/virtual machine.
 
 ## Table of content
 - [Developers](#developers)
