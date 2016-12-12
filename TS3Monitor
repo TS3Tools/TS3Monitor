@@ -1,0 +1,469 @@
+#!/usr/bin/env bash
+#
+# About: This script will check the status of your TeamSpeak 3 or TSDNS server instance and if it has crashed, it will try to restart it.
+# Author: Sebastian Kraetzig <info@ts3-tools.info>
+# Project: www.ts3-tools.info
+# facebook: www.facebook.com/TS3Tools
+# License: GNU GPLv3
+# _____ ____ _____       _              _       _        __
+#|_   _/ ___|___ /      | |_ ___   ___ | |___  (_)_ __  / _| ___
+#  | | \___ \ |_ \ _____| __/ _ \ / _ \| / __| | | '_ \| |_ / _ \
+#  | |  ___) |__) |_____| || (_) | (_) | \__ \_| | | | |  _| (_) |
+#  |_| |____/____/       \__\___/ \___/|_|___(_)_|_| |_|_|  \___/
+#
+# Donations: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7ZRXLSC2UBVWE
+#
+
+SCRIPT_VERSION="1.0.0"
+LAST_EDIT_DATE="2016-12-12"
+
+# DO NOT REMOVE OR CHANGE
+SOFTWARE_ABOUT="This script will check the status of your TeamSpeak 3 or TSDNS server instance and if it has crashed, it will try to restart it."
+SOFTWARE_AUTHOR="Sebastian Kraetzig <info@ts3-tools.info>"
+SOFTWARE_HOMEPAGE="www.ts3-tools.info"
+SOFTWARE_FACEBOOK="www.facebook.com/TS3Tools"
+SOFTWARE_LICENSE="GNU GPLv3"
+
+# Code structure:
+#       1) COLOURS
+#       2) FUNCTIONS
+#       3) MAIN PROGRAM
+#       3) MENU / HELP
+#       4) Call to main()
+#               a) SELFTESTS
+#               b) COLLECTING INFORMATION (if all selftests were successfull)
+#               d) EXECUTION MECHANISM (if all selftests were successfull)
+
+# Get screen width
+export TERM=xterm
+let "COL = $(tput cols) - 10"
+let "BCOL = $(tput cols) - 23"
+
+##
+## COLOURS
+##
+
+SCurs='\e[s';           # Save Cursor
+MCurs="\e[${COL}C";     # Move Cursor
+MCursB="\e[45C";        # Move Cursor a bit
+MCursBB="\e[${BCOL}C";  # Move Cursor a bit more
+RCurs='\e[u';           # Reset Cursor
+RCol='\e[0m';           # Text Reset
+
+# Regular           Bold                Underline           High Intensity      BoldHigh Intens     Background          High Intensity Backgrounds
+Bla='\e[0;30m';     BBla='\e[1;30m';    UBla='\e[4;30m';    IBla='\e[0;90m';    BIBla='\e[1;90m';   On_Bla='\e[40m';    On_IBla='\e[0;100m';
+Red='\e[0;31m';     BRed='\e[1;31m';    URed='\e[4;31m';    IRed='\e[0;91m';    BIRed='\e[1;91m';   On_Red='\e[41m';    On_IRed='\e[0;101m';
+Gre='\e[0;32m';     BGre='\e[1;32m';    UGre='\e[4;32m';    IGre='\e[0;92m';    BIGre='\e[1;92m';   On_Gre='\e[42m';    On_IGre='\e[0;102m';
+Yel='\e[0;33m';     BYel='\e[1;33m';    UYel='\e[4;33m';    IYel='\e[0;93m';    BIYel='\e[1;93m';   On_Yel='\e[43m';    On_IYel='\e[0;103m';
+Blu='\e[0;34m';     BBlu='\e[1;34m';    UBlu='\e[4;34m';    IBlu='\e[0;94m';    BIBlu='\e[1;94m';   On_Blu='\e[44m';    On_IBlu='\e[0;104m';
+Pur='\e[0;35m';     BPur='\e[1;35m';    UPur='\e[4;35m';    IPur='\e[0;95m';    BIPur='\e[1;95m';   On_Pur='\e[45m';    On_IPur='\e[0;105m';
+Cya='\e[0;36m';     BCya='\e[1;36m';    UCya='\e[4;36m';    ICya='\e[0;96m';    BICya='\e[1;96m';   On_Cya='\e[46m';    On_ICya='\e[0;106m';
+Whi='\e[0;37m';     BWhi='\e[1;37m';    UWhi='\e[4;37m';    IWhi='\e[0;97m';    BIWhi='\e[1;97m';   On_Whi='\e[47m';    On_IWhi='\e[0;107m';
+
+# Clear terminal screen
+function clearTerminalScreen() {
+	clear 2> /dev/null
+}
+
+# Checks consistency of script
+# Return: 0:boolean or 1:boolean
+function checkConsistency() {
+	CHKSUM=$(grep -v "ORIGIN=" "$0" | head -400 | sha256sum | cut -d " " -f 1)
+	ORIGIN="7ee1416855f852093786cda13ad62dcbaf9e856de5a47e9bf898cfe2a7c31844"
+
+	if [[ "$CHKSUM" == "$ORIGIN" ]]; then
+		return 0;
+	else
+		return 1;
+	fi
+}
+
+# Detect absolute and full path as well as filename of this script
+cd "$(dirname $0)"
+ABSOLUTE_PATH=$(pwd)
+SCRIPT_NAME=$(basename $0)
+cd - > /dev/null
+
+# Load required functions
+for file in $(find "${ABSOLUTE_PATH}/fncs/" -type f -name "*.fnc" | sort -n); do
+	. "${file}"
+done
+
+if [[ "$EUID" == 0 ]]; then
+	LICENSE_DETAILS=$(getLicenseDetails)
+	SCRIPT_LICENSE_TXT=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 1)
+	SCRIPT_LICENSE_START=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 2)
+	SCRIPT_LICENSE_END=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 3)
+
+	if [[ "${SCRIPT_LICENSE_TXT}" == "Community" ]]; then
+		SCRIPT_LICENSE_TYPE=0;
+	elif [[ "${SCRIPT_LICENSE_TXT}" == "Professional" ]]; then
+		SCRIPT_LICENSE_TYPE=1;
+	elif [[ "${SCRIPT_LICENSE_TXT}" == "Enterprise" ]]; then
+		SCRIPT_LICENSE_TYPE=2;
+	fi
+
+	SUPPORT_LICENSE_TXT=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 4)
+	SUPPORT_LICENSE_START=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 5)
+	SUPPORT_LICENSE_END=$(echo ${LICENSE_DETAILS} | cut -d '|' -f 6)
+else
+	SCRIPT_LICENSE_TYPE=0;
+	SCRIPT_LICENSE_TXT="Community"
+	SUPPORT_LICENSE_TXT="Community"
+fi
+
+##
+## MAIN PROGRAM
+##
+
+# Clear terminal screen, if this session is interactive
+if [ -t 0 ]; then
+	clearTerminalScreen
+fi
+
+echo -e "\nAbout: ${SOFTWARE_ABOUT}";
+echo    "Author: ${SOFTWARE_AUTHOR} | Website: ${SOFTWARE_HOMEPAGE} | facebook: ${SOFTWARE_FACEBOOK}";
+echo -e "License: ${SOFTWARE_LICENSE}\n";
+
+echo    " _____ ____ _____       _              _       _        __";
+echo    "|_   _/ ___|___ /      | |_ ___   ___ | |___  (_)_ __  / _| ___";
+echo    "  | | \___ \ |_ \ _____| __/ _ \ / _ \| / __| | | '_ \| |_ / _ \\";
+echo    "  | |  ___) |__) |_____| || (_) | (_) | \__ \_| | | | |  _| (_) |";
+echo -e "  |_| |____/____/       \__\___/ \___/|_|___(_)_|_| |_|_|  \___/\n";
+
+echo    "Script Version: $SCRIPT_VERSION ($LAST_EDIT_DATE)";
+if [[ "$EUID" != 0 ]]; then echo -e "${Red}HINT:${RCol} Only root can check your license!"; fi
+echo -n "Script License: ${SCRIPT_LICENSE_TXT}";
+if [[ "${SCRIPT_LICENSE_TYPE}" -eq 0 ]] || [[ "${SCRIPT_LICENSE_TXT}" == "Community" ]] || [[ "${SCRIPT_LICENSE_TXT}" == "Professional" ]]; then echo " (No support bought)"; else echo " (Support valid from ${SCRIPT_LICENSE_START} until ${SCRIPT_LICENSE_END})"; fi
+echo -n "Support License: ${SUPPORT_LICENSE_TXT}";
+if [[ "${SCRIPT_LICENSE_TYPE}" -eq 0 ]] || [[ "${SUPPORT_LICENSE_TXT}" == "Community" ]]; then echo -e " (No support plan bought)\n"; else echo -e " (Support valid from ${SUPPORT_LICENSE_START} until ${SUPPORT_LICENSE_END})\n"; fi
+
+echo -e "Donate and support this script: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7ZRXLSC2UBVWE\n";
+
+echo -e "------------------------------------------------------------------\n";
+
+echo -e "Please wait... Script is working...\n";
+
+##
+## MENU / HELP
+##
+
+# If no option is set, show the usage message
+if [ "$1" == "" ]; then
+	echo "$SCRIPT_NAME: missing option";
+	echo -e "\nMultiple option usage: ./${SCRIPT_NAME} [ts3server | tsdnsserver] [--path /path/to/server/] [--install-cronjob]";
+	echo -e "\nSingle option usage: ./${SCRIPT_NAME} [--update-script] | [--deinstall-cronjob]";
+
+	echo -e "\nTry './$SCRIPT_NAME --help' for more options.\n";
+
+	exit 0;
+fi
+
+# Set default values for parameter/arguments
+PAR_DISPLAY_SETTINGS=0;
+PAR_CRONJOB_TASK=0;
+if [ ! -t 0 ]; then
+	if [[ "$SCRIPT_LICENSE_TYPE" == "1" ]] || [[ "$SCRIPT_LICENSE_TYPE" == "2" ]]; then
+		PAR_CRONJOB_TASK=1;
+	else
+		echo "Cronjobs are not possible under the Community license! You need to upgrade your license therefore. View README.md for more.";
+		exit 1;
+	fi
+fi
+
+# Save parameter list
+PAR_COUNTER=0;
+PAR_LIST="$*";
+PAR_DISPLAY_SETTINGS=0;
+PAR_UPDATE_SCRIPT=0;
+PAR_TS3SERVER=0;
+PAR_TSDNSSERVER=0;
+PAR_PATH=0;
+PAR_PATH_DIRECTORY="/";
+PAR_INSTALL_CRONJOB=0;
+PAR_DEINSTALL_CRONJOB=0;
+PAR_DEBUG=0;
+PAR_DEBUG_FILENAME="";
+
+# Check given arguments
+while [ -n "$1" ]; do
+	PAR_COUNTER=`expr $PAR_COUNTER + 1`;
+	case $(echo "$1" | tr '[:upper:]' '[:lower:]') in
+                -h | --help)
+                        echo -e "Usage: ./${SCRIPT_NAME} OPTION(S)\n";
+
+                        echo    "Available multi usable options:";
+                        echo -e "\tts3server | tsdnsserver\n\t\tType of service/server, which should be checked";
+			echo -e "\t--path /path/to/server/\n\t\tAbsolute path to TeamSpeak 3 or TSDNS server";
+                        echo -e "\t--debug <DEBUG_FILENAME>\n\t\tEnables debugging and writes output to file";
+                        echo -e "\t--install-cronjob <HOUR> <MINUTE>\n\t\tInstalls hourly cronjob (default: every full hour)\n";
+
+                        echo    "Available single usable options:";
+                        echo -e "\t-h OR --help\n\t\tDisplays this help page";
+                        echo -e "\t-v OR --version\n\t\tDisplays version of this script";
+                        echo -e "\t--display-settings\n\t\tDisplays settings from config files in configs/";
+                        echo -e "\t--update-script\n\t\tUpdates the TS3Monitor to the latest version";
+                        echo -e "\t--show-license-key\n\t\tDisplays TS3Monitor license key";
+			echo -e "\t--force-license-update\n\t\tForces an update for the TS3Monitor license key";
+			echo -e "\t--request-license <EMAIL> <professional|enterprise>\n\t\tSends license information to info@ts3-tools.com to get Professional or Enterprise license (view README.md section 'Script Licenses'!)";
+			echo -e "\t--deinstall-cronjob\n\t\tDeinstalls hourly cronjob";
+
+			exit 0;
+		;;
+
+		--24x7)
+			echo -e "Usage: ./${SCRIPT_NAME} OPTION(S)\n";
+
+			echo    "Available multi usable options:";
+			echo -e "\tts3server | tsdnsserver\n\t\tType of service/server, which should be checked";
+			echo -e "\t--path /path/to/server/\n\t\tAbsolute path to TeamSpeak 3 or TSDNS server";
+			echo -e "\t(--force-start)\n\t\tForces a start, even if the server/service has been shutdown gracefully before (NOT recommend)";
+			echo -e "\t--debug <DEBUG_FILENAME>\n\t\tEnables debugging and writes output to file";
+			echo -e "\t--install-cronjob <HOUR> <MINUTE>\n\t\tInstalls hourly cronjob (default: every full hour)\n";
+
+			echo    "Available single usable options:";
+			echo -e "\t-h OR --help\n\t\tDisplays this help page";
+			echo -e "\t-v OR --version\n\t\tDisplays version of this script";
+			echo -e "\t--display-settings\n\t\tDisplays settings from config files in configs/";
+			echo -e "\t--update-script\n\t\tUpdates the TS3Monitor to the latest version";
+			echo -e "\t--show-license-key\n\t\tDisplays TS3Monitor license key";
+			echo -e "\t--force-license-update\n\t\tForces an update for the TS3Monitor license key";
+			echo -e "\t--request-license <EMAIL> <professional|enterprise>\n\t\tSends license information to info@ts3-tools.com to get Professional or Enterprise license (view README.md section 'Script Licenses'!)";
+			echo -e "\t--deinstall-cronjob\n\t\tDeinstalls hourly cronjob";
+
+			exit 0;
+		;;
+
+		-v | --version)
+			echo "The script of version $SCRIPT_VERSION was edited on $LAST_EDIT_DATE the last time.";
+
+			exit 0;
+		;;
+
+		--display-settings)
+			PAR_DISPLAY_SETTINGS=1;
+			shift;
+		;;
+
+		--update-script)
+			PAR_UPDATE_SCRIPT=1;
+			shift;
+		;;
+
+		ts3server | tsdnsserver)
+			if [[ "$1" == "ts3server" ]]; then
+				PAR_TS3SERVER=1;
+			elif [[ "$1" == "tsdnsserver" ]]; then
+				PAR_TSDNSSERVER=1;
+			fi
+
+			shift;
+		;;
+
+		--path)
+			if [[ "$SCRIPT_LICENSE_TYPE" == "2" ]]; then
+				PAR_PATH=1;
+
+				if [[ -n "$2" ]]; then
+					if [[ -d "$2" ]]; then
+						if [[ "${PAR_TS3SERVER}" -eq 1 ]]; then
+							if [[ -f "${2}/ts3server_startscript.sh" ]]; then
+								PAR_PATH_DIRECTORY="$2";
+							else
+								echo "Your set directory '$2' isn't a valid root directory of a TeamSpeak 3 server! Please set a correct one.";
+								exit 1;
+							fi
+						fi
+
+						if [[ "${PAR_TSDNSSERVER}" -eq 1 ]]; then
+							if [[ -f "${2}/tsdnsserver" ]] && [[ -f "${2}/tsdns_settings.ini" ]]; then
+								PAR_PATH_DIRECTORY="$2";
+							else
+								echo "Your set directory '$2' isn't a valid root directory of a TSDNS server with a valid tsdns_settings.ini! Please set a correct one.";
+								exit 1;
+							fi
+						fi
+					else
+						echo "Your set directory '$2' does not exist! Please set an existing one.";
+						exit 1;
+					fi
+				else
+					echo "Set the path to your TeamSpeak 3 server root directory! For example: --path /home/teamspeak/";
+					exit 1;
+				fi
+
+				shift;
+				shift;
+			else
+				echo "The parameter '--path' is only available under the Enterprise license! You need to upgrade your license therefore. View README.md for more.";
+				exit 1;
+			fi
+		;;
+
+		--force-start)
+			PAR_FORCE_START=1;
+			shift;
+		;;
+
+		--install-cronjob)
+			PAR_INSTALL_CRONJOB=1;
+			if [[ -n "$2" ]] && [[ "$2" =~ [0-9]{1,2} ]]; then
+				if [[ "$2" -ge 0 ]] && [[ "$2" -le 23 ]]; then
+					PAR_CRONJOB_HOUR="$2";
+					shift;
+				else
+					echo "'$2' is an invalid hour on the clock! Please use a positive number between 0 and 23.";
+					exit 1;
+				fi
+			fi
+
+			if [[ -n "$2" ]] && [[ "$2" =~ [0-9]{1,2} ]]; then
+				if [[ "$2" -ge 0 ]] && [[ "$2" -le 59 ]]; then
+					PAR_CRONJOB_MINUTE="$2";
+					shift;
+				else
+					echo "'$2' is an invalid minute on the clock! Please use a positive number between 0 and 59.";
+					exit 1;
+				fi
+			fi
+
+			shift;
+		;;
+
+		--deinstall-cronjob)
+			PAR_DEINSTALL_CRONJOB=1;
+			shift;
+		;;
+
+		--show-license-key)
+			if [ -f ${ABSOLUTE_PATH}/.ts3monit_license_key ]; then
+				echo "Your license key is as follows: $(cat ${ABSOLUTE_PATH}/.ts3monit_license_key | sed 's/\(.\{4\}\)/\1 /g')";
+			else
+				echo "You need to execute the script once with root permissions to obtain a valid license.";
+			fi
+
+			exit 0;
+		;;
+
+		--force-license-update)
+			PAR_FORCE_LICENSE_UPDATE=1;
+			shift;
+		;;
+
+		--request-license)
+			if [[ "$EUID" == 0 ]]; then
+				if [[ -n "$2" ]]; then
+					if [[ -n "$3" ]]; then
+						LICENSE_TYPE=$(echo -n "$3" | tr '[:lower:]' '[:upper:]')
+
+						if [[ "${LICENSE_TYPE}" == "PROFESSIONAL" ]] || [[ "${LICENSE_TYPE}" == "ENTERPRISE" ]]; then
+							PAYMENT_EMAIL="$2";
+							IP_ADDRESS=$(wget -t 3 --timeout=5 -qO- "$(echo "${LICENSE_SIP}" | base64 --decode)");
+							LICENSE_KEY="$(< ${ABSOLUTE_PATH}/.ts3monit_license_key)";
+
+							if [[ -n "$IP_ADDRESS" ]] && [[ -n "$LICENSE_KEY" ]]; then
+								(echo "Payment eMail: ${PAYMENT_EMAIL}"; echo "IP: ${IP_ADDRESS}"; echo "Product: TS3Monitor"; echo "License: ${LICENSE_TYPE}"; echo "License key: ${LICENSE_KEY}") | mail -s "TS3-Tools.info - TS3Monitor ${LICENSE_TYPE} License" info@ts3-tools.info,${PAYMENT_EMAIL}
+								if [[ $? -eq 0 ]]; then
+									echo "Email should be sent successful to info@ts3-tools.info and ${PAYMENT_EMAIL}. If you do not receive this email within the next minutes, you server is may not able to send emails through the internet.";
+									exit 0;
+								else
+									echo "Could not send email. The 'mail' command is may not available.";
+									exit 1;
+								fi
+							else
+								echo "Could not detect your IP address or your license key. Please try again.";
+								exit 1;
+							fi
+						else
+							echo "'${LICENSE_TYPE}' is no valid license. Please set a valid one. Available licenses are 'Professional' and 'Enterprise'.";
+							exit 1;
+						fi
+					else
+						echo "Specifiy the license for which you want to apply. For example: --request-license you@example.com professional";
+						exit 1;
+					fi
+				else
+					echo "Specify your payment email address, with which you have payed your license! For example: --request-license you@example.com professional";
+					exit 1;
+				fi
+			else
+				echo "Unable to get your license key. Run the script as root!";
+				exit 1;
+			fi
+		;;
+
+		--debug)
+			PAR_DEBUG=1;
+
+			if [[ -n "$2" ]]; then
+				if [[ ! -f "$2" ]]; then
+					PAR_DEBUG_FILENAME="$2";
+				else
+					echo "This file does already exist! This script do not overwrite existing files. If you want to use this filename, you may should delete it.";
+					exit 1;
+				fi
+			else
+				echo "Specify the debug filename! For example: --debug error.txt";
+				exit 1;
+			fi
+
+			shift;
+			shift;
+		;;
+
+		*)
+			echo "Unregonized option: $1"
+			echo -e "\nUsage: ./$SCRIPT_NAME OPTION(S)\n";
+			echo "Try './$SCRIPT_NAME --help' for more options.";
+
+			exit 0;
+		;;
+	esac
+done
+
+# Given arguments allowed?
+#if [[ "$PAR_COUNTER" -eq 1 ]]; then
+#	if [[ "$PAR_TS3SERVER" -eq 0 ]] && [[ "$PAR_TSDNSSERVER" -eq 0 ]] && [[ "$PAR_UPDATE_SCRIPT" -eq 0 ]] && [[ "$PAR_DEINSTALL_CRONJOB" -eq 0 ]] && [[ "$PAR_DISPLAY_SETTINGS" -eq 0 ]] && [[ "$PAR_FORCE_LICENSE_UPDATE" -eq 0 ]]; then
+#		echo "It is not allowed to use this parameter only!";
+#		exit 1;
+#	fi
+#elif [[ "$PAR_COUNTER" -eq 2 ]]; then
+#	if [[ "$PAR_UPDATE_SCRIPT" -eq 1 ]] && [[ "$PAR_CRONJOB_TASK" -eq 0 ]] && [[ "$PAR_TS3SERVER" -eq 1 ]] || [[ "$PAR_TSDNSSERVER" -eq 1 ]] || [[ "$PAR_DEINSTALL_CRONJOB" -eq 1 ]] || [[ "$PAR_DISPLAY_SETTINGS" -eq 1 ]] || [[ "$PAR_FORCE_LICENSE_UPDATE" -eq 1 ]]; then
+#		echo "It is not allowed to use those both parameters at the same time!";
+#		exit 1;
+#	fi
+#elif [[ "$PAR_COUNTER" -gt 2 ]]; then
+#	if [[ "$PAR_HELP" -eq 1 ]] || [[ "$PAR_VERSION" -eq 1 ]] || [[ "$PAR_DEINSTALL_CRONJOB" -eq 1 ]] || [[ "$PAR_TEST_INFORM_ONLINE_CLIENTS" -eq 1 ]] || [[ "$PAR_DISPLAY_SETTINGS" -eq 1 ]] || [[ "$PAR_FORCE_LICENSE_UPDATE" -eq 1 ]]; then
+#		echo "This type of combination is not permitted!";
+#		exit 1;
+#	fi
+#fi
+
+# Make sure that the script runs with root permissions
+if [[ "$EUID" != 0 ]]; then
+	echo "This action needs root permissions. Please enter your root password...";
+	cd "$ABSOLUTE_PATH"
+	su -s "$(which bash)" -c "./$SCRIPT_NAME $PAR_LIST"
+	cd - > /dev/null
+
+	exit 0;
+fi
+
+if [[ "${PAR_FORCE_LICENSE_UPDATE}" -eq 1 ]]; then
+	if ! checkLicense force; then
+		echo "Your license could not be updated.";
+	else
+		echo "Your license was updated successful.";
+	fi
+
+	exit 0;
+fi
+
+# Execute main program
+if [ $PAR_DEBUG -eq 0 ]; then
+	main
+else
+	main 2>&1 | tee $PAR_DEBUG_FILENAME | grep -E -v '^\+ '
+fi
+
+exit 0;

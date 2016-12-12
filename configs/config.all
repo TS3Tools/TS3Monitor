@@ -1,0 +1,19 @@
+# Set your default language like en_EN or de_DE
+# Available languages are in lang/verified/
+DEFAULT_LANGUAGE=en_EN
+
+# Set email addresses, which should receive the emails
+# You also can send it to multiple receipients, by using a comma: root@localhost,admin@yourdomain.com
+ADMINISTRATOR_EMAILS=root@localhost
+
+# When do you want to receive emails?
+# false: Only on restart event
+# true: Always, even when the TS3 server was running (useful for monitoring)
+# Notice: This feature may spam you, if you set it to 'true'
+SEND_EMAIL_ALWAYS=false
+
+# Enable auto deletion of old log files, when the TS3Monitor (re-) starts your instance
+# false: Keep old TeamSpeak 3 server log files
+# true: Delete old TeamSpeak 3 server log files on restart
+TS3SERVER_DELETE_OLD_LOGS=true
+
