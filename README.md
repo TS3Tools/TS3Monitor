@@ -51,7 +51,7 @@ The **TS3Monitor** provides you also an autostart feature of the configured inst
   - bash (GNU Bourne Again SHell)
   - which
   - grep (GNU grep, egrep and fgrep)
-  - any MTA like postfix or exim (for receiving cronjob mails)
+  - any MTA like postfix or exim (for receiving notification mails)
 - root user access on your Linux system (below a list of some reasons, why the script needs root permissions)
 
 ## Supports
@@ -80,23 +80,23 @@ Configure it by editing the ``configs/config.all`` file using a text editor of y
 
 Next, add a cronjob using the parameter ``--install-cronjob``:
 
-``./TS3Monitor ts3server /home/teamspeak/ --install-cronjob``
+``./TS3Monitor ts3server --path /home/teamspeak/ --install-cronjob``
 
-``./TS3Monitor tsdnsserver /home/teamspeak/tsdns/ --install-cronjob``
+``./TS3Monitor tsdnsserver --path /home/teamspeak/tsdns/ --install-cronjob``
 
 You can adjust the cronjob by editing the cron file ``/etc/cron.d/TS3Monitor``:
 
-``*/5 * * * * bash /root/TS3Monitor-master/TS3Monitor ts3server /home/teamspeak/``
+``*/5 * * * * bash /root/TS3Monitor-master/TS3Monitor ts3server --path /home/teamspeak/``
 
 The above example would install a cronjob, which checks every 5 minutes the status of the ``ts3server`` in ``/home/teamspeak/``.
 
-``*/5 * * * * bash /root/TS3Monitor-master/TS3Monitor tsdns /home/teamspeak/tsdns/``
+``*/5 * * * * bash /root/TS3Monitor-master/TS3Monitor tsdns --path /home/teamspeak/tsdns/``
 
 The above example would install a cronjob, which checks every 5 minutes the status of the ``tsdnsserver`` in ``/home/teamspeak/tsdns/``.
 
 The below example would check every single minute (every 60 seconds) the status of the ``ts3server`` in ``/home/teamspeak/``.
 
-``* * * * * bash /root/TS3Monitor-master/TS3Monitor ts3server /home/teamspeak/``
+``* * * * * bash /root/TS3Monitor-master/TS3Monitor ts3server --path /home/teamspeak/``
 
 ## Script licenses
 
@@ -110,9 +110,9 @@ Enterprise | ATHP | None | Yes | 49.99 EUR
 
 Send me your license information to get a invoice, which you need to pay:
 
-  user@tux:~$ ./TS3Monitor --send-license-information [Your invoice E-Mail address] [professional | enterprise]
+  user@tux:~$ ./TS3Monitor --request-license [Your invoice E-Mail address] [professional | enterprise]
 
-  user@tux:~$ ./TS3Monitor --send-license-information you@example.com professional
+  user@tux:~$ ./TS3Monitor --request-license you@example.com professional
 
 Hint: You should receive a copy of this email within a few minutes. If not, your server is may not able to send emails. Please follow the alternative instructions instead.
 
