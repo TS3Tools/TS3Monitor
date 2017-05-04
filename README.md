@@ -33,6 +33,7 @@ The **TS3Monitor** provides you also an autostart feature of the configured inst
 
 ## Special Features
 
+- Writes results to a log file
 - E-Mail notification
 - TeamSpeak 3 / TSDNS server instance restart
 - Linux autostarts for TeamSpeak 3 / TSDNS server instance
