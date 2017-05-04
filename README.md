@@ -132,7 +132,7 @@ If you only have bought a Professional license or just require more support, you
 Below are the available subscription plans including their SLA:
 
 Name | Included support | SLA Respond time | Costs
-:------------- | :------------- | :------------- | :------------- | :-------------
+:------------- | :------------- | :------------- | :-------------
 Basis SLA | 1 year | Within a week | 14.99 EUR
 Professional SLA | 1 year | Within 48 hours | 49.99 EUR
 Enterprise SLA | 3 year | Within 48 hours | 119.99 EUR
