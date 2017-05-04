@@ -2,6 +2,11 @@
 # Available languages are in lang/verified/
 DEFAULT_LANGUAGE=en_EN
 
+# Enable or disable the log of this script
+# false: The script will not write any log files
+# true: The script will write log files to /var/log/ts3tools/ts3monitor.log
+WRITE_TS3MONITOR_LOG=true
+
 # Set email addresses, which should receive the emails
 # You also can send it to multiple receipients, by using a comma: root@localhost,admin@yourdomain.com
 ADMINISTRATOR_EMAILS=root@localhost

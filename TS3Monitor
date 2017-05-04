@@ -14,8 +14,8 @@
 # Donations: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7ZRXLSC2UBVWE
 #
 
-SCRIPT_VERSION="1.0.0"
-LAST_EDIT_DATE="2016-12-12"
+SCRIPT_VERSION="1.1.0"
+LAST_EDIT_DATE="2017-05-04"
 
 # DO NOT REMOVE OR CHANGE
 SOFTWARE_ABOUT="This script will check the status of your TeamSpeak 3 or TSDNS server instance and if it has crashed, it will try to restart it."
@@ -69,7 +69,7 @@ function clearTerminalScreen() {
 # Return: 0:boolean or 1:boolean
 function checkConsistency() {
 	CHKSUM=$(grep -v "ORIGIN=" "$0" | head -400 | sha256sum | cut -d " " -f 1)
-	ORIGIN="7ee1416855f852093786cda13ad62dcbaf9e856de5a47e9bf898cfe2a7c31844"
+	ORIGIN="cda2c924ca9940f188d5be48b8906f21a6416b1ad3a48959e6c667ba6bb63644"
 
 	if [[ "$CHKSUM" == "$ORIGIN" ]]; then
 		return 0;
@@ -118,8 +118,17 @@ fi
 
 # Clear terminal screen, if this session is interactive
 if [ -t 0 ]; then
+	# Identify real user, who is executing the script
+	CURRENT_TTY=$(tty | cut -d '/' -f 4)
+	REAL_LOGGED_IN_USER=$(who | grep "pts/${CURRENT_TTY}" | cut -d ' ' -f 1)
+	TYPE="USER";
+
 	clearTerminalScreen
+else
+	REAL_LOGGED_IN_USER="cron"
+	TYPE="CRON";
 fi
+
 
 echo -e "\nAbout: ${SOFTWARE_ABOUT}";
 echo    "Author: ${SOFTWARE_AUTHOR} | Website: ${SOFTWARE_HOMEPAGE} | facebook: ${SOFTWARE_FACEBOOK}";
@@ -174,6 +183,7 @@ fi
 # Save parameter list
 PAR_COUNTER=0;
 PAR_LIST="$*";
+PAR_FULL_CMD="${ABSOLUTE_PATH}/$(basename $0) ${PAR_LIST}";
 PAR_DISPLAY_SETTINGS=0;
 PAR_UPDATE_SCRIPT=0;
 PAR_TS3SERVER=0;

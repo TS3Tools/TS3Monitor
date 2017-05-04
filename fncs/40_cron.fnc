@@ -14,12 +14,11 @@ function crond() {
 	if [[ "${2}" == "install" ]]; then
 		if [ "$CROND_PATH" == "/etc/fcron.cyclic/" ]; then
 			echo -en "#!/usr/bin/env bash\n" > ${CROND_PATH_FILE};
-			echo -en "PATH=/usr/local/bin:/usr/bin:/bin\n" >> ${CROND_PATH_FILE};
+			echo -en "PATH=/usr/local/bin:/usr/bin:/bin\n\n" >> ${CROND_PATH_FILE};
 		else
-			echo -en "PATH=/usr/local/bin:/usr/bin:/bin\n" > ${CROND_PATH_FILE};
+			echo -en "PATH=/usr/local/bin:/usr/bin:/bin\n\n" > ${CROND_PATH_FILE};
 		fi
 
-		echo -en "#MAILTO=\"$(getAdministratorEmail)\"\n\n" >> ${CROND_PATH_FILE};
 		echo -en "# TS3Monitor: Cronjob for updating the script\n" >> ${CROND_PATH_FILE};
 
 		echo -e "  45 2 * * *  root $(pwd)/$(basename $0) --update-script\n" >> ${CROND_PATH_FILE};
@@ -38,40 +37,44 @@ function crond() {
 			CRONJOB_HOUR="*";
 		fi
 
-		if findTS3ServerInstances; then
-			while read instancePath; do
-				INSTANCE_PATH=$(dirname $instancePath)
+		TS3InstancePathsFilename=$(findTS3ServerInstances)
 
-				if [[ -n "$INSTANCE_PATH" ]]; then
-					echo -n "  ${CRONJOB_MINUTE} ${CRONJOB_HOUR} * * *  root ${ABSOLUTE_PATH}/${SCRIPT_NAME} " >> ${CROND_PATH_FILE};
-
-					if [ "$PAR_TS3SERVER" -eq 1 ]; then
-						echo -n "ts3server " >> ${CROND_PATH_FILE};
-					elif [ "$PAR_TSDNSSERVER" -eq 1 ]; then
-						echo -n "tsdnsserver " >> ${CROND_PATH_FILE};
-					fi
-
-					if [[ "$SCRIPT_LICENSE_TYPE" == "2" ]]; then
-						echo -n "--path ${INSTANCE_PATH} " >> ${CROND_PATH_FILE};
-					fi
-
-					if [[ "$PAR_FORCE_START" -eq 1 ]]; then
-						echo -n "--force-start" >> ${CROND_PATH_FILE};
-					fi
-
-					echo -e "\n" >> ${CROND_PATH_FILE};
-
-					if [ "$CRONJOB_MINUTE" == "55" ]; then
-						CRONJOB_MINUTE="0";
-						if [ "$CRONJOB_HOUR" != "*" ]; then
-							CRONJOB_HOUR=`expr $CRONJOB_HOUR + 1`
-						fi
-					else
-						CRONJOB_MINUTE=`expr $CRONJOB_MINUTE + 5`
-					fi
-				fi
-			done < TS3InstancePaths.txt
+		if [[ "${TS3InstancePathsFilename}" == "1" ]]; then
+			return 1;
 		fi
+
+		while read instancePath; do
+			INSTANCE_PATH=$(dirname $instancePath)
+
+			if [[ -n "$INSTANCE_PATH" ]]; then
+				echo -n "  ${CRONJOB_MINUTE} ${CRONJOB_HOUR} * * *  root ${ABSOLUTE_PATH}/${SCRIPT_NAME} " >> ${CROND_PATH_FILE};
+
+				if [ "$PAR_TS3SERVER" -eq 1 ]; then
+					echo -n "ts3server " >> ${CROND_PATH_FILE};
+				elif [ "$PAR_TSDNSSERVER" -eq 1 ]; then
+					echo -n "tsdnsserver " >> ${CROND_PATH_FILE};
+				fi
+
+				if [[ "$SCRIPT_LICENSE_TYPE" == "2" ]]; then
+					echo -n "--path ${INSTANCE_PATH} " >> ${CROND_PATH_FILE};
+				fi
+
+				if [[ "$PAR_FORCE_START" -eq 1 ]]; then
+					echo -n "--force-start" >> ${CROND_PATH_FILE};
+				fi
+
+				echo -e "\n" >> ${CROND_PATH_FILE};
+
+				if [ "$CRONJOB_MINUTE" == "55" ]; then
+					CRONJOB_MINUTE="0";
+					if [ "$CRONJOB_HOUR" != "*" ]; then
+						CRONJOB_HOUR=`expr $CRONJOB_HOUR + 1`
+					fi
+				else
+					CRONJOB_MINUTE=`expr $CRONJOB_MINUTE + 5`
+				fi
+			fi
+		done < ${TS3InstancePathsFilename}
 
 		echo -en "# ^ ^ ^ ^ ^\n" >> ${CROND_PATH_FILE};
 		echo -en "# | | | | |\n" >> ${CROND_PATH_FILE};

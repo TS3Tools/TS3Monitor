@@ -168,3 +168,28 @@ function sendEmailNotification() {
 
 	return 1;
 }
+
+# Writes a log file
+# Par 1: result:string
+# Return: 0:boolean or 1:boolean
+function writeAndAppendLog() {
+	LOG_FILE_PATH="/var/log/ts3tools"
+	LOG_FILE_NAME="ts3monitor.log"
+
+	RESULT="${1}"
+
+	if [[ ! -d ${LOG_FILE_PATH} ]]; then
+		mkdir -p ${LOG_FILE_PATH}
+	fi
+
+	CURRENT_DATE=$(date +'%b %e %H:%M:%S')
+	CURRENT_PID=$$
+
+	echo "${CURRENT_DATE} $(hostname -s) ${TYPE}[${CURRENT_PID}]: (${REAL_LOGGED_IN_USER}) CMD (${PAR_FULL_CMD}) RESULT (${RESULT})" >> ${LOG_FILE_PATH}/${LOG_FILE_NAME};
+
+	if [[ $? -eq 0 ]]; then
+		return 0;
+	else
+		return 1;
+	fi
+}

@@ -23,6 +23,14 @@ Hotfix | Important fix for one more issues, which causes a not (correct) working
 
 ## Releases
 
+### Version 1.1.0 (2017-05-04)
+
+	* One translation for de_DE was missing
+	* Installation of cronjob will now also set the ts3server and tsdns monitoring lines
+	- Removed line with email from cronjob file, because it is not used
+	+ TS3Monitor writes now also a log file to '/var/log/ts3tools/ts3monitor.log' by default (GitHub issue [#2](https://github.com/TS3Tools/TS3Monitor/issues/2))
+	! If you want to disable this logging, you can add this variable to your 'configs/config.all' file: WRITE_TS3MONITOR_LOG=false
+
 ### Version 1.0.0 (2016-12-12)
 
 	+ Initial version of this script

@@ -17,6 +17,12 @@ function main() {
 	source $PAR_LOCALE;
 	cd - > /dev/null
 
+	# En-/Disable writing of TS3Monitor log file
+	WRITE_TS3MONITOR_LOG="$(grep 'WRITE_TS3MONITOR_LOG' ${ABSOLUTE_PATH}/configs/config.all | cut -d '=' -f 2)";
+	if [[ "${WRITE_TS3MONITOR_LOG}" != "true" ]] && [[ "${WRITE_TS3MONITOR_LOG}" != "false" ]] ; then
+		WRITE_TS3MONITOR_LOG="true";
+	fi
+
 	# Load required functions
 	for file in $(find "${ABSOLUTE_PATH}/fncs/" -type f -name "*_script.fnc" | sort -n); do
 		. "${file}"
@@ -174,6 +180,7 @@ function main() {
 			echo	"Following your settings:";
 			echo    "############################################################################";
 			echo -e "	Default language:\t\t$(grep 'DEFAULT_LANGUAGE' ${ABSOLUTE_PATH}/configs/config.all | cut -d '=' -f 2)";
+			echo -e "	Write TS3Monitor Log:\t\t$(grep 'WRITE_TS3MONITOR_LOG' ${ABSOLUTE_PATH}/configs/config.all | cut -d '=' -f 2)";
 			echo -e "	Administrator E-Mail:\t\t$(getAdministratorEmail)";
 			echo -e "	Send Emails always:\t\t$(grep 'SEND_EMAIL_ALWAYS' ${ABSOLUTE_PATH}/configs/config.all | cut -d '=' -f 2)";
 			echo -e "	Delete old TS3 server logs:\t$(grep 'TS3SERVER_DELETE_OLD_LOGS' ${ABSOLUTE_PATH}/configs/config.all | cut -d '=' -f 2)";
@@ -225,13 +232,16 @@ function main() {
 					fi
 
 					if ts3server ${INSTANCE_PATH} status; then
-						# In Log Datei oder auch per E-Mail schreiben
 						echo "${TXT_EXECUTION_INSTANCE_IS_RUNNING_AS_EXPECTED}";
 
-						if [[ "${SEND_EMAIL_ALWAYS}" == "true" ]]; then
-							REASONS=$(identifyReasonForStoppedTS3Server ${INSTANCE_PATH})
-							STARTSCRIPT_STATUS=$(echo "${REASONS}" | cut -d '|' -f 1)
+						REASONS=$(identifyReasonForStoppedTS3Server ${INSTANCE_PATH})
+						STARTSCRIPT_STATUS=$(echo "${REASONS}" | cut -d '|' -f 1)
 
+						if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+							writeAndAppendLog "${STARTSCRIPT_STATUS}"
+						fi
+
+						if [[ "${SEND_EMAIL_ALWAYS}" == "true" ]]; then
 							if sendEmailNotification "ok" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
 								echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
 							else
@@ -267,6 +277,10 @@ function main() {
 								if ts3server ${INSTANCE_PATH} start; then
 									echo "${TXT_EXECUTION_INSTANCE_STARTED_SUCCESSFUL}";
 
+									if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+										writeAndAppendLog "${STARTSCRIPT_STATUS}"
+									fi
+
 									if sendEmailNotification "started" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
 										echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
 									else
@@ -277,15 +291,17 @@ function main() {
 								fi
 							fi
 
-							if [[ "${SEND_EMAIL_ALWAYS}" == "true" ]]; then
-								REASONS=$(identifyReasonForStoppedTS3Server ${INSTANCE_PATH})
-								STARTSCRIPT_STATUS=$(echo "${REASONS}" | cut -d '|' -f 1)
+							REASONS=$(identifyReasonForStoppedTS3Server ${INSTANCE_PATH})
+							STARTSCRIPT_STATUS=$(echo "${REASONS}" | cut -d '|' -f 1)
 
-								if sendEmailNotification "stopped" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
-									echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
-								else
-									echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_FAILURE}";
-								fi
+							if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+								writeAndAppendLog "${STARTSCRIPT_STATUS}"
+							fi
+
+							if sendEmailNotification "stopped" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
+								echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
+							else
+								echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_FAILURE}";
 							fi
 						else
 							echo "${TXT_EXECUTION_INSTANCE_CRASHED}";
@@ -306,6 +322,10 @@ function main() {
 								if ts3server ${INSTANCE_PATH} start; then
 									echo "${TXT_EXECUTION_INSTANCE_STARTED_SUCCESSFUL}";
 
+									if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+										writeAndAppendLog "${STARTSCRIPT_STATUS}"
+									fi
+
 									if sendEmailNotification "crashed" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
 										echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
 									else
@@ -319,6 +339,10 @@ function main() {
 
 								REASONS=$(identifyReasonForStoppedTS3Server ${INSTANCE_PATH})
 								STARTSCRIPT_STATUS=$(echo "${REASONS}" | cut -d '|' -f 1)
+
+								if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+									writeAndAppendLog "${STARTSCRIPT_STATUS}"
+								fi
 
 								if sendEmailNotification "failure" "ts3server" ${INSTANCE_PATH} "${STARTSCRIPT_STATUS}" ${TS3_SERVER_INSTANCE_LOG_PATH}; then
 									echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
@@ -341,8 +365,11 @@ function main() {
 					echo "${TXT_EXECUTION_CHECKING_TSDNSSERVER}: ${INSTANCE_PATH}";
 
 					if tsdns ${INSTANCE_PATH} status; then
-						# In Log Datei oder auch per E-Mail schreibena
 						echo "${TXT_EXECUTION_INSTANCE_IS_RUNNING_AS_EXPECTED}";
+
+						if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+							writeAndAppendLog "OK - service is running"
+						fi
 
 						if [[ "${SEND_EMAIL_ALWAYS}" == "true" ]]; then
 							if sendEmailNotification "ok" "tsdnsserver" ${INSTANCE_PATH}; then
@@ -357,6 +384,10 @@ function main() {
 						if [[ ! -f ${INSTANCE_PATH}/../.ts3updatescript.lock ]]; then
 							if tsdns ${INSTANCE_PATH} start; then
 								echo "${TXT_EXECUTION_INSTANCE_STARTED_SUCCESSFUL}";
+
+								if [[ "${WRITE_TS3MONITOR_LOG}" == "true" ]]; then
+									writeAndAppendLog "CRASHED - Restarted service"
+								fi
 
 								if sendEmailNotification "crashed" "tsdnsserver" ${INSTANCE_PATH}; then
 									echo "${TXT_EXECUTION_NOTIFICATION_EMAIL_SENT}";
