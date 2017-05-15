@@ -23,6 +23,12 @@ Hotfix | Important fix for one more issues, which causes a not (correct) working
 
 ## Releases
 
+### Version 1.2.0 (2017-05-15)
+
+	* Cronjobs: The script will now check hourly for a new version
+	* If the TS3 server was started, the script logged two lines; it will now only log the first line
+	* Removed colon from variable 'TXT_SELF_TEST_TS3UPDATESCRIPT_RELEASED'
+
 ### Version 1.1.0 (2017-05-04)
 
 	* One translation for de_DE was missing

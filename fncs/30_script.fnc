@@ -176,7 +176,7 @@ function writeAndAppendLog() {
 	LOG_FILE_PATH="/var/log/ts3tools"
 	LOG_FILE_NAME="ts3monitor.log"
 
-	RESULT="${1}"
+	RESULT=$(echo "${1}" | head -1)
 
 	if [[ ! -d ${LOG_FILE_PATH} ]]; then
 		mkdir -p ${LOG_FILE_PATH}

@@ -21,7 +21,7 @@ function crond() {
 
 		echo -en "# TS3Monitor: Cronjob for updating the script\n" >> ${CROND_PATH_FILE};
 
-		echo -e "  45 2 * * *  root $(pwd)/$(basename $0) --update-script\n" >> ${CROND_PATH_FILE};
+		echo -e "  0 * * * *  root $(pwd)/$(basename $0) --update-script\n" >> ${CROND_PATH_FILE};
 
 		echo -en "# TS3Monitor: Cronjob(s) for monitoring\n" >> ${CROND_PATH_FILE};
 

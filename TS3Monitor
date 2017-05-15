@@ -14,8 +14,8 @@
 # Donations: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7ZRXLSC2UBVWE
 #
 
-SCRIPT_VERSION="1.1.0"
-LAST_EDIT_DATE="2017-05-04"
+SCRIPT_VERSION="1.2.0"
+LAST_EDIT_DATE="2017-05-15"
 
 # DO NOT REMOVE OR CHANGE
 SOFTWARE_ABOUT="This script will check the status of your TeamSpeak 3 or TSDNS server instance and if it has crashed, it will try to restart it."
@@ -69,7 +69,7 @@ function clearTerminalScreen() {
 # Return: 0:boolean or 1:boolean
 function checkConsistency() {
 	CHKSUM=$(grep -v "ORIGIN=" "$0" | head -400 | sha256sum | cut -d " " -f 1)
-	ORIGIN="cda2c924ca9940f188d5be48b8906f21a6416b1ad3a48959e6c667ba6bb63644"
+	ORIGIN="b37c05adc6ef73304ede0ffdfab1b9a0d52ae4dfa2a8069da129ed95c1b6a514"
 
 	if [[ "$CHKSUM" == "$ORIGIN" ]]; then
 		return 0;
